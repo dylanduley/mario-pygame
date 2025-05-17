@@ -23,6 +23,13 @@ class PlayerSprite(pygame.sprite.Sprite):
         self.boosted_max_speed = 8  # Boosted maximum speed
         self.acceleration = 0.8  # Increased acceleration
         self.sliding = False  # To control slide animation
+        self.jumping = False
+        self.jump_pressed = False
+        self.jump_timer = 0
+        self.jump_velocity = -8  # was -15, this gives a lower arc
+        self.gravity = 1.2  # slightly stronger pull
+        self.max_jump_hold_time = 10  # slightly shorter hold window
+        self.max_fall_speed = 16  # keeps fall speed quick
 
     def load_and_scale(self, image_path):
         image = pygame.image.load(image_path).convert_alpha()
@@ -102,16 +109,41 @@ class PlayerSprite(pygame.sprite.Sprite):
 
         self.player_rect.x += self.player_speed
 
-        if key_down[pygame.K_SPACE] and self.player_rect.bottom == ground_rect.top:
-            self.player_gravity = -20
-            jump_sound.play()
+        if key_down[pygame.K_SPACE]:
+            if self.player_rect.bottom == ground_rect.top and not self.jump_pressed:
+                self.player_gravity = self.jump_velocity
+                self.jumping = True
+                self.jump_timer = 0
+                jump_sound.play()
+            self.jump_pressed = True
+        else:
+            self.jump_pressed = False
+            self.jumping = False  # early release ends high jump
 
     def player_jump_gravity(self, ground_rect):
-        self.player_gravity += 1
+        # While jump is held and under max time, reduce gravity (higher jump)
+        if self.jumping and self.jump_timer < self.max_jump_hold_time:
+            self.player_gravity += -self.gravity * 0.6  # lower gravity = more float
+            self.jump_timer += 1
+        else:
+            # Normal or fast fall
+            if self.player_gravity < 0:
+                self.player_gravity += self.gravity  # going up
+            else:
+                self.player_gravity += self.gravity * 1.5  # falling faster
+
+        # Clamp fall speed
+        if self.player_gravity > self.max_fall_speed:
+            self.player_gravity = self.max_fall_speed
+
         self.player_rect.y += self.player_gravity
-        # Check that Player is above ground and adjusts accordingly
+
+        # Ground collision reset
         if self.player_rect.bottom >= ground_rect.top:
             self.player_rect.bottom = ground_rect.top
+            self.player_gravity = 0
+            self.jumping = False
+            self.jump_timer = 0
 
 class Player:
     def __init__(self, sprite_size):

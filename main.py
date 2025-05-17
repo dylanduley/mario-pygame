@@ -1,7 +1,6 @@
 import pygame
 from sys import exit
 from settings import *
-from player import Player
 
 # Initialize Pygame
 pygame.init()
@@ -76,40 +75,37 @@ def main():
     sky_surface, logo_surface, logo_rect, ground_surface = load_assets()
     ground_tiles = create_ground_tiles(ground_surface)
     jump_sound = load_sounds()
-
-    player1 = Player(sprite_size)
     clock = pygame.time.Clock()
 
+    # Import scenes here (avoid circular imports)
+    from title_scene import TitleScene
+    from game_scene import GameScene
+
+    scenes = {
+        "title": TitleScene(logo_surface, logo_rect, sky_surface, ground_surface, ground_tiles),
+        "game": GameScene(sprite_size, ground_surface, ground_tiles, jump_sound),
+    }
+
+    current_scene = "title"
+
     while True:
-        for event in pygame.event.get():
+        events = pygame.event.get()
+        for event in events:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
 
-        # Draw background
-        screen.blit(sky_surface, (0, 0))
+        scene = scenes[current_scene]
+        next_scene = scene.handle_events(events)
+        if next_scene:
+            current_scene = next_scene
 
-        # Draw ground tiles
-        for ground_rect in ground_tiles:
-            screen.blit(ground_surface, ground_rect.topleft)
+        scene.update()
+        scene.draw(screen)
 
-        # Draw logo
-        screen.blit(logo_surface, logo_rect.topleft)
-
-        # Use the first ground tile as ground_rect for player movement and gravity
-        ground_rect = ground_tiles[0]  # Assuming the player interacts with the first ground tile
-
-        # Player actions
-        player1.player_movement(ground_rect, jump_sound)
-        player1.player_jump_gravity(ground_rect)
-        player1.player_animation(ground_rect)
-
-        # Draw player
-        screen.blit(player1.player_surf, player1.player_rect)
-
-        # Update the display and set the frame rate
         pygame.display.update()
         clock.tick(60)
+
 
 if __name__ == "__main__":
     main()
